@@ -1,0 +1,987 @@
+local Fluent = loadstring(game:HttpGet("https://github.com/dawid-scripts/Fluent/releases/latest/download/main.lua"))()
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local LocalPlayer = Players.LocalPlayer
+local Camera = workspace.CurrentCamera
+local Lighting = game:GetService("Lighting")
+
+local AimbotSettings = {
+    Enabled = false,
+    HoldKey = Enum.KeyCode.X,
+    TargetPart = "Head",
+    FOVRadius = 150,
+    ShowFOV = false,
+    FOVColor = Color3.fromRGB(255, 255, 255),
+    FOVThickness = 2,
+    Smoothing = 0.2,
+    TeamCheck = false,
+    Holding = false,
+    LockedTarget = nil
+}
+
+local ESPSettings = {
+    Boxes = false,
+    Names = false,
+    Distance = false,
+    Tracer = false,
+    Skeleton = false,
+    SkeletonThickness = 1.5,
+    FullBright = false,
+    Chams = false,
+    ChamsFillColor = Color3.fromRGB(255, 0, 0),
+    ChamsOutlineColor = Color3.fromRGB(255, 255, 255),
+    ChamsFillTransparency = 0.5,
+    ChamsOutlineTransparency = 0,
+    BoxColor = Color3.fromRGB(255, 255, 255),
+    NameColor = Color3.fromRGB(255, 255, 255),
+    DistanceColor = Color3.fromRGB(255, 255, 255),
+    TracerColor = Color3.fromRGB(255, 255, 255),
+    SkeletonColor = Color3.fromRGB(255, 255, 255),
+    FriendColor = Color3.fromRGB(0, 255, 0)
+}
+
+local RadarSettings = {
+    Enabled = false,
+    Size = 180,
+    Position = Vector2.new(50, 50),
+    DotColor = Color3.fromRGB(255, 255, 255),
+    CenterColor = Color3.fromRGB(0, 255, 0),
+    BackgroundColor = Color3.fromRGB(0, 0, 0),
+    FriendDotColor = Color3.fromRGB(0, 255, 0),
+    Reverse = true
+}
+
+local CustomFOV = 70
+local WalkSpeed = 16
+local StretchResEnabled = false
+local StretchAmount = 0.525
+
+local Friends = {}
+local ESPObjects = {}
+local RadarDots = {}
+
+local FOVCircle = Drawing.new("Circle")
+FOVCircle.NumSides = 100
+FOVCircle.Filled = false
+FOVCircle.Transparency = 1
+FOVCircle.Visible = false
+FOVCircle.ZIndex = 999
+
+local RadarBackground = Drawing.new("Square")
+RadarBackground.Thickness = 1
+RadarBackground.Filled = true
+RadarBackground.Transparency = 0.5
+RadarBackground.Visible = false
+
+local RadarCenterDot = Drawing.new("Circle")
+RadarCenterDot.Radius = 3
+RadarCenterDot.Filled = true
+RadarCenterDot.Visible = false
+
+local originalLighting = {
+    Brightness = Lighting.Brightness,
+    ClockTime = Lighting.ClockTime,
+    FogEnd = Lighting.FogEnd,
+    GlobalShadows = Lighting.GlobalShadows,
+    Ambient = Lighting.Ambient,
+    OutdoorAmbient = Lighting.OutdoorAmbient
+}
+
+local Window = Fluent:CreateWindow({
+    Title = "GilbertHUB",
+    SubTitle = "By the Gilberts",
+    TabWidth = 160,
+    Size = UDim2.fromOffset(580, 460),
+    Acrylic = true,
+    Theme = "Dark",
+    MinimizeKey = Enum.KeyCode.RightShift
+})
+
+local Combat = Window:AddTab({ Title = "Combat", Icon = "" })
+local Visuals = Window:AddTab({ Title = "Visuals", Icon = "" })
+local ColorsTab = Window:AddTab({ Title = "Colors", Icon = "" })
+local FriendsTab = Window:AddTab({ Title = "Friends", Icon = "" })
+local Misc = Window:AddTab({ Title = "Misc", Icon = "" })
+local Teleport = Window:AddTab({ Title = "Teleport", Icon = "" })
+
+Misc:AddButton({
+    Title = "Destroy GUI",
+    Callback = function()
+        Fluent:Destroy()
+    end
+})
+
+Misc:AddToggle("StretchRes", {
+    Title = "Stretch Res",
+    Default = false,
+    Callback = function(v) StretchResEnabled = v end
+})
+
+Misc:AddSlider("WalkSpeed", {
+    Title = "Walk Speed",
+    Min = 0,
+    Max = 50,
+    Default = 10,
+    Rounding = 0,
+    Callback = function(v) WalkSpeed = v end
+})
+
+-- Teleport buttons with placeholder coordinates
+Teleport:AddParagraph({Title = "Teleport Locations", Content = "Click to teleport. This shi UD. BUG [teleport again]"})
+
+Teleport:AddButton({
+    Title = "Bank",
+    Callback = function()
+        if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+            LocalPlayer.Character.HumanoidRootPart.CFrame = CFrame.new(Vector3.new(-225, 4, 92))
+        end
+    end
+})
+
+Teleport:AddButton({
+    Title = "Gun Store",
+    Callback = function()
+        if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+            LocalPlayer.Character.HumanoidRootPart.CFrame = CFrame.new(Vector3.new(39, 4, 367))
+        end
+    end
+})
+
+Teleport:AddButton({
+    Title = "sports shop",
+    Callback = function()
+        if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+            LocalPlayer.Character.HumanoidRootPart.CFrame = CFrame.new(Vector3.new(-18, 4, -78))
+        end
+    end
+})
+
+Teleport:AddButton({
+    Title = "Ultimate drip",
+    Callback = function()
+        if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+            LocalPlayer.Character.HumanoidRootPart.CFrame = CFrame.new(Vector3.new(93, 4, 91))
+        end
+    end
+})
+
+Teleport:AddButton({
+    Title = "Robbable Store 1",
+    Callback = function()
+        if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+            LocalPlayer.Character.HumanoidRootPart.CFrame = CFrame.new(Vector3.new(-17, 4, -24))
+        end
+    end
+})
+
+Teleport:AddButton({
+    Title = "Robbable Store 2",
+    Callback = function()
+        if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+            LocalPlayer.Character.HumanoidRootPart.CFrame = CFrame.new(Vector3.new(-330, 4, 446))
+        end
+    end
+})
+
+Teleport:AddButton({
+    Title = "Robbable Store 3",
+    Callback = function()
+        if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+            LocalPlayer.Character.HumanoidRootPart.CFrame = CFrame.new(Vector3.new(292, 4, -758))
+        end
+    end
+})
+
+Teleport:AddButton({
+    Title = "Robbable Store 4",
+    Callback = function()
+        if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+            LocalPlayer.Character.HumanoidRootPart.CFrame = CFrame.new(Vector3.new(292, 4, -758))
+        end
+    end
+})
+
+Teleport:AddButton({
+    Title = "Banklog Bando",
+    Callback = function()
+        if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+            LocalPlayer.Character.HumanoidRootPart.CFrame = CFrame.new(Vector3.new(-195, 6, 255))
+        end
+    end
+})
+
+Teleport:AddButton({
+    Title = "Drippy's Barber Shop",
+    Callback = function()
+        if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+            LocalPlayer.Character.HumanoidRootPart.CFrame = CFrame.new(Vector3.new(-21, 4, 125))
+        end
+    end
+})
+
+Teleport:AddButton({
+    Title = "Farmer's Market",
+    Callback = function()
+        if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+            LocalPlayer.Character.HumanoidRootPart.CFrame = CFrame.new(Vector3.new(-1, 4, -655))
+        end
+    end
+})
+
+Teleport:AddButton({
+    Title = "Skittles Lab",
+    Callback = function()
+        if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+            LocalPlayer.Character.HumanoidRootPart.CFrame = CFrame.new(Vector3.new(85, 4, 441))
+        end
+    end
+})
+
+Teleport:AddButton({
+    Title = "Police Station",
+    Callback = function()
+        if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+            LocalPlayer.Character.HumanoidRootPart.CFrame = CFrame.new(Vector3.new(-255, 4, -142))
+        end
+    end
+})
+
+Teleport:AddButton({
+    Title = "Motel",
+    Callback = function()
+        if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+            LocalPlayer.Character.HumanoidRootPart.CFrame = CFrame.new(Vector3.new(-102, 4, -126))
+        end
+    end
+})
+
+Teleport:AddButton({
+    Title = "LDN Pawn Shop",
+    Callback = function()
+        if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+            LocalPlayer.Character.HumanoidRootPart.CFrame = CFrame.new(Vector3.new(-28, 4, 346))
+        end
+    end
+})
+
+Teleport:AddButton({
+    Title = "Tattoo Shop",
+    Callback = function()
+        if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+            LocalPlayer.Character.HumanoidRootPart.CFrame = CFrame.new(Vector3.new(45, 4, 131))
+        end
+    end
+})
+
+Teleport:AddButton({
+    Title = "Rent a Scooter",
+    Callback = function()
+        if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+            LocalPlayer.Character.HumanoidRootPart.CFrame = CFrame.new(Vector3.new(-26, 4, 4))
+        end
+    end
+})
+
+Teleport:AddButton({
+    Title = "Black market",
+    Callback = function()
+        if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+            LocalPlayer.Character.HumanoidRootPart.CFrame = CFrame.new(Vector3.new(254, 4, 428))
+        end
+    end
+})
+
+Teleport:AddButton({
+    Title = "Laundromat",
+    Callback = function()
+        if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+            LocalPlayer.Character.HumanoidRootPart.CFrame = CFrame.new(Vector3.new(217, 4, 368))
+        end
+    end
+})
+
+Teleport:AddButton({
+    Title = "Boxed Ice Robbery",
+    Callback = function()
+        if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+            LocalPlayer.Character.HumanoidRootPart.CFrame = CFrame.new(Vector3.new(298, 4, -240))
+        end
+    end
+})
+
+Teleport:AddButton({
+    Title = "Skittles Dealer",
+    Callback = function()
+        if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+            LocalPlayer.Character.HumanoidRootPart.CFrame = CFrame.new(Vector3.new(278, 4, 132))
+        end
+    end
+})
+
+Teleport:AddButton({
+    Title = "dealership",
+    Callback = function()
+        if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+            LocalPlayer.Character.HumanoidRootPart.CFrame = CFrame.new(Vector3.new(-50, 5, 548))
+        end
+    end
+})
+
+Teleport:AddButton({
+    Title = "Banklog Dealer",
+    Callback = function()
+        if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+            LocalPlayer.Character.HumanoidRootPart.CFrame = CFrame.new(Vector3.new(-177, -1, 167))
+        end
+    end
+})
+
+Teleport:AddButton({
+    Title = "Illegal Gunstore",
+    Callback = function()
+        if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+            LocalPlayer.Character.HumanoidRootPart.CFrame = CFrame.new(Vector3.new(40, 4, -656))
+        end
+    end
+})
+
+Teleport:AddButton({
+    Title = "Casino robbery",
+    Callback = function()
+        if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+            LocalPlayer.Character.HumanoidRootPart.CFrame = CFrame.new(Vector3.new(-358, 5, 286))
+        end
+    end
+})
+
+-- Friends Tab
+local FriendInput = FriendsTab:AddInput("FriendInput", {
+    Title = "Username",
+    Placeholder = "Enter username...",
+    AllowClear = true
+})
+
+FriendsTab:AddButton({
+    Title = "Add Friend",
+    Callback = function()
+        local name = FriendInput.Value or ""
+        if name ~= "" and not Friends[name] then
+            Friends[name] = true
+            Fluent:Notify({
+                Title = "Friend Added",
+                Content = name .. " added",
+                Duration = 3
+            })
+            UpdateFriendList()
+        end
+    end
+})
+
+FriendsTab:AddParagraph({Title = "Your Friends", Content = ""})  -- placeholder för listan
+
+local FriendListParagraph = FriendsTab:AddParagraph({Title = "", Content = "No friends yet"})
+
+local function UpdateFriendList()
+    local list = "Friends:\n"
+    for friendName in pairs(Friends) do
+        list = list .. "- " .. friendName .. "\n"
+    end
+    FriendListParagraph:Set({Content = list ~= "Friends:\n" and list or "No friends yet"})
+end
+
+FriendsTab:AddButton({
+    Title = "Refresh Friend List",
+    Callback = UpdateFriendList
+})
+
+-- ESP & Radar cleanup etc
+local function CleanupESP(player)
+    if ESPObjects[player] then
+        for _, obj in pairs(ESPObjects[player]) do
+            if typeof(obj) == "table" then
+                for _, line in ipairs(obj) do pcall(function() line:Remove() end) end
+            else
+                pcall(function() obj:Remove() end)
+            end
+        end
+        if ESPObjects[player].Highlight then
+            pcall(function() ESPObjects[player].Highlight:Destroy() end)
+        end
+        ESPObjects[player] = nil
+    end
+end
+
+local function CleanupRadar(player)
+    if RadarDots[player] then
+        pcall(function() RadarDots[player]:Remove() end)
+        RadarDots[player] = nil
+    end
+end
+
+Players.PlayerRemoving:Connect(function(player)
+    CleanupESP(player)
+    CleanupRadar(player)
+    if AimbotSettings.LockedTarget and AimbotSettings.LockedTarget.Parent and Players:GetPlayerFromCharacter(AimbotSettings.LockedTarget.Parent) == player then
+        AimbotSettings.LockedTarget = nil
+    end
+end)
+
+local function CreateESP(player)
+    if player == LocalPlayer then return end
+    local Box = Drawing.new("Square")
+    Box.Thickness = 2
+    Box.Filled = false
+    Box.Transparency = 1
+    Box.Visible = false
+
+    local NameTag = Drawing.new("Text")
+    NameTag.Size = 16
+    NameTag.Center = true
+    NameTag.Outline = true
+    NameTag.Transparency = 1
+    NameTag.Visible = false
+
+    local DistTag = Drawing.new("Text")
+    DistTag.Size = 14
+    DistTag.Center = true
+    DistTag.Outline = true
+    DistTag.Transparency = 1
+    DistTag.Visible = false
+
+    local TracerLine = Drawing.new("Line")
+    TracerLine.Thickness = 1.5
+    TracerLine.Transparency = 1
+    TracerLine.Visible = false
+
+    local SkeletonLines = {}
+    for i = 1, 14 do  -- Ökat till 14 för full R15 skeleton
+        local ln = Drawing.new("Line")
+        ln.Thickness = ESPSettings.SkeletonThickness
+        ln.Transparency = 1
+        ln.Visible = false
+        table.insert(SkeletonLines, ln)
+    end
+
+    ESPObjects[player] = {Box = Box, Name = NameTag, Dist = DistTag, Tracer = TracerLine, Skeleton = SkeletonLines, Highlight = nil}
+end
+
+for _, plr in Players:GetPlayers() do CreateESP(plr) end
+Players.PlayerAdded:Connect(CreateESP)
+
+local function CreateRadarDot(player)
+    if player == LocalPlayer then return end
+    local dot = Drawing.new("Circle")
+    dot.Radius = 4
+    dot.Filled = true
+    dot.Transparency = 1
+    dot.Visible = false
+    RadarDots[player] = dot
+end
+
+for _, plr in Players:GetPlayers() do CreateRadarDot(plr) end
+Players.PlayerAdded:Connect(CreateRadarDot)
+
+local function IsValidTarget(part)
+    if not part or not part.Parent then return false end
+    local char = part.Parent
+    local player = Players:GetPlayerFromCharacter(char)
+    if not player or player == LocalPlayer then return false end
+    if AimbotSettings.TeamCheck and player.Team == LocalPlayer.Team then return false end
+    if Friends[player.Name] then return false end
+    local hum = char:FindFirstChild("Humanoid")
+    if not hum or hum.Health <= 0 then return false end
+    
+    -- Kolla om inom FOV
+    local screen, onScreen = Camera:WorldToViewportPoint(part.Position)
+    if not onScreen then return false end
+    local mousePos = UserInputService:GetMouseLocation()
+    local dist = (Vector2.new(screen.X, screen.Y) - mousePos).Magnitude
+    if dist > AimbotSettings.FOVRadius then return false end
+    
+    return true
+end
+
+-- FIXAD Aimbot: Bättre closest + FOV-check + update varje frame
+local function GetClosestPlayerToMouse()
+    local closest, minDist = nil, AimbotSettings.FOVRadius
+    local mousePos = UserInputService:GetMouseLocation()
+    for _, player in ipairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("Humanoid") and player.Character.Humanoid.Health > 0 then
+            if AimbotSettings.TeamCheck and player.Team == LocalPlayer.Team then continue end
+            if Friends[player.Name] then continue end
+            local part = player.Character:FindFirstChild(AimbotSettings.TargetPart) or player.Character:FindFirstChild("Head")
+            if part then
+                local screen, onScreen = Camera:WorldToViewportPoint(part.Position)
+                if onScreen then
+                    local dist = (Vector2.new(screen.X, screen.Y) - mousePos).Magnitude
+                    if dist < minDist then
+                        minDist = dist
+                        closest = part
+                    end
+                end
+            end
+        end
+    end
+    return closest
+end
+
+UserInputService.InputBegan:Connect(function(input)
+    if input.KeyCode == AimbotSettings.HoldKey then
+        AimbotSettings.Holding = true
+    end
+end)
+
+UserInputService.InputEnded:Connect(function(input)
+    if input.KeyCode == AimbotSettings.HoldKey then
+        AimbotSettings.Holding = false
+        AimbotSettings.LockedTarget = nil
+    end
+end)
+
+RunService.RenderStepped:Connect(function()
+    -- Custom FOV
+    Camera.FieldOfView = CustomFOV
+
+    -- Stretch Res
+    if StretchResEnabled then
+        Camera.CFrame = Camera.CFrame * CFrame.new(0, 0, 0, 1, 0, 0, 0, StretchAmount, 0, 0, 0, 1)
+    end
+
+    -- Walk Speed
+    if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
+        LocalPlayer.Character.Humanoid.WalkSpeed = WalkSpeed
+    end
+
+    -- FOV Circle
+    if AimbotSettings.ShowFOV then
+        FOVCircle.Position = UserInputService:GetMouseLocation()
+        FOVCircle.Radius = AimbotSettings.FOVRadius
+        FOVCircle.Color = AimbotSettings.FOVColor
+        FOVCircle.Thickness = AimbotSettings.FOVThickness
+        FOVCircle.Visible = true
+    else
+        FOVCircle.Visible = false
+    end
+
+    -- Aimbot
+    if AimbotSettings.Enabled and AimbotSettings.Holding then
+        -- Uppdatera target om inte giltig
+        if not AimbotSettings.LockedTarget or not IsValidTarget(AimbotSettings.LockedTarget) then
+            local newTarget = GetClosestPlayerToMouse()
+            if newTarget then
+                AimbotSettings.LockedTarget = newTarget
+            else
+                AimbotSettings.LockedTarget = nil
+            end
+        end
+
+        -- Sikta om giltig target
+        if AimbotSettings.LockedTarget and IsValidTarget(AimbotSettings.LockedTarget) then
+            local targetPos = AimbotSettings.LockedTarget.Position + Vector3.new(0, 0.15, 0)
+            local targetCF = CFrame.lookAt(Camera.CFrame.Position, targetPos)
+            local alpha = 1 - AimbotSettings.Smoothing
+            if AimbotSettings.Smoothing <= 0 then alpha = 1 end
+            Camera.CFrame = Camera.CFrame:Lerp(targetCF, alpha)
+        else
+            AimbotSettings.LockedTarget = nil
+        end
+    else
+        AimbotSettings.LockedTarget = nil
+    end
+
+    -- Fullbright
+    if ESPSettings.FullBright then
+        Lighting.Brightness = 2
+        Lighting.ClockTime = 14
+        Lighting.FogEnd = 100000
+        Lighting.GlobalShadows = false
+        Lighting.Ambient = Color3.fromRGB(255,255,255)
+        Lighting.OutdoorAmbient = Color3.fromRGB(200,200,200)
+    else
+        Lighting.Brightness = originalLighting.Brightness
+        Lighting.ClockTime = originalLighting.ClockTime
+        Lighting.FogEnd = originalLighting.FogEnd
+        Lighting.GlobalShadows = originalLighting.GlobalShadows
+        Lighting.Ambient = originalLighting.Ambient
+        Lighting.OutdoorAmbient = originalLighting.OutdoorAmbient
+    end
+
+    -- ESP loop (förbättrad cleanup + reset innan draw)
+for player, drawings in pairs(ESPObjects) do
+    local char = player.Character
+    local root = char and char:FindFirstChild("HumanoidRootPart")
+    local head = char and char:FindFirstChild("Head")
+    local hum = char and char:FindFirstChild("Humanoid")
+
+    -- Snabb total cleanup om ogiltig karaktär / död / borta
+    if not char or not root or not head or not hum or hum.Health <= 0 then
+        -- Dölj och ta bort allt
+        drawings.Box.Visible = false
+        drawings.Name.Visible = false
+        drawings.Dist.Visible = false
+        drawings.Tracer.Visible = false
+        for _, line in ipairs(drawings.Skeleton) do
+            line.Visible = false
+        end
+        if drawings.Highlight then
+            drawings.Highlight.Enabled = false
+        end
+        
+        -- Extra: ta bort objekten helt för att undvika minnesläckor / ghosting
+        pcall(function()
+            drawings.Box:Remove()
+            drawings.Name:Remove()
+            drawings.Dist:Remove()
+            drawings.Tracer:Remove()
+            for _, line in ipairs(drawings.Skeleton) do line:Remove() end
+            if drawings.Highlight then drawings.Highlight:Destroy() end
+        end)
+        
+        ESPObjects[player] = nil
+        continue
+    end
+
+    -- WorldToViewportPoint för root (används för att avgöra om synlig)
+    local rootPos, onScreen = Camera:WorldToViewportPoint(root.Position)
+
+    -- Om INTE på skärmen → dölj ALLT omedelbart
+    if not onScreen then
+        drawings.Box.Visible = false
+        drawings.Name.Visible = false
+        drawings.Dist.Visible = false
+        drawings.Tracer.Visible = false
+        for _, line in ipairs(drawings.Skeleton) do
+            line.Visible = false
+        end
+        if drawings.Highlight then
+            drawings.Highlight.Enabled = false
+        end
+        continue
+    end
+
+    -- Nu vet vi att det är på skärmen → beräkna allt
+    local dist = (Camera.CFrame.Position - root.Position).Magnitude
+    local isFriend = Friends[player.Name] or false
+    local color = isFriend and ESPSettings.FriendColor or ESPSettings.BoxColor
+    local tracerColor = isFriend and ESPSettings.FriendColor or ESPSettings.TracerColor
+    local skelColor = isFriend and ESPSettings.FriendColor or ESPSettings.SkeletonColor
+
+    local function w2s(pos)
+        local vec, vis = Camera:WorldToViewportPoint(pos)
+        return vis and Vector2.new(vec.X, vec.Y) or nil
+    end
+
+    -- Calculate bounding box using head and feet for better placement
+    local headOffset = head.Size.Y / 2 + 0.5
+    local head2d = w2s(head.Position + Vector3.new(0, headOffset, 0))
+
+    local leftFoot = char:FindFirstChild("LeftFoot")
+    local rightFoot = char:FindFirstChild("RightFoot")
+    local footOffset = leftFoot and leftFoot.Size.Y / 2 or 1
+    local leftfoot2d = leftFoot and w2s(leftFoot.Position - Vector3.new(0, footOffset, 0))
+    local rightfoot2d = rightFoot and w2s(rightFoot.Position - Vector3.new(0, footOffset, 0))
+
+    local foot2d
+    if leftfoot2d and rightfoot2d then
+        foot2d = leftfoot2d.Y > rightfoot2d.Y and leftfoot2d or rightfoot2d
+    elseif leftfoot2d or rightfoot2d then
+        foot2d = leftfoot2d or rightfoot2d
+    else
+        foot2d = w2s(root.Position - Vector3.new(0, 3, 0))
+    end
+
+    local torso2d = w2s((char:FindFirstChild("UpperTorso") or char:FindFirstChild("Torso")).Position)
+
+    local minY = head2d and head2d.Y or rootPos.Y - 50
+    local maxY = foot2d and foot2d.Y or rootPos.Y + 50
+    local height_px = maxY - minY
+    local width_px = height_px * 0.4
+    local centerX = torso2d and torso2d.X or rootPos.X
+    local minX = centerX - width_px / 2
+    local maxX = centerX + width_px / 2
+
+    -- BOX
+    if ESPSettings.Boxes then
+        drawings.Box.Position = Vector2.new(minX, minY)
+        drawings.Box.Size = Vector2.new(maxX - minX, maxY - minY)
+        drawings.Box.Color = color
+        drawings.Box.Visible = true
+    else
+        drawings.Box.Visible = false
+    end
+
+    -- NAME
+    if ESPSettings.Names then
+        drawings.Name.Text = player.Name
+        drawings.Name.Position = Vector2.new((minX + maxX) / 2, minY - 20)
+        drawings.Name.Color = ESPSettings.NameColor
+        drawings.Name.Visible = true
+    else
+        drawings.Name.Visible = false
+    end
+
+    -- DISTANCE
+    if ESPSettings.Distance then
+        drawings.Dist.Text = math.floor(dist) .. " studs"
+        drawings.Dist.Position = Vector2.new((minX + maxX) / 2, maxY + 5)
+        drawings.Dist.Color = ESPSettings.DistanceColor
+        drawings.Dist.Visible = true
+    else
+        drawings.Dist.Visible = false
+    end
+
+    -- TRACER
+    if ESPSettings.Tracer then
+        drawings.Tracer.From = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y)
+        drawings.Tracer.To = Vector2.new((minX + maxX) / 2, maxY)
+        drawings.Tracer.Color = tracerColor
+        drawings.Tracer.Visible = true
+    else
+        drawings.Tracer.Visible = false
+    end
+
+    -- SKELETON
+    if ESPSettings.Skeleton then
+        local upperTorso = char:FindFirstChild("UpperTorso") or char:FindFirstChild("Torso")
+        local lowerTorso = char:FindFirstChild("LowerTorso") or upperTorso
+
+        local parts = {
+            Head = head.Position,
+            UpperTorso = upperTorso and upperTorso.Position,
+            LowerTorso = lowerTorso and lowerTorso.Position,
+            LeftUpperArm = char:FindFirstChild("LeftUpperArm") and char.LeftUpperArm.Position,
+            LeftLowerArm = char:FindFirstChild("LeftLowerArm") and char.LeftLowerArm.Position,
+            LeftHand = char:FindFirstChild("LeftHand") and char.LeftHand.Position,
+            RightUpperArm = char:FindFirstChild("RightUpperArm") and char.RightUpperArm.Position,
+            RightLowerArm = char:FindFirstChild("RightLowerArm") and char.RightLowerArm.Position,
+            RightHand = char:FindFirstChild("RightHand") and char.RightHand.Position,
+            LeftUpperLeg = char:FindFirstChild("LeftUpperLeg") and char.LeftUpperLeg.Position,
+            LeftLowerLeg = char:FindFirstChild("LeftLowerLeg") and char.LeftLowerLeg.Position,
+            LeftFoot = char:FindFirstChild("LeftFoot") and char.LeftFoot.Position,
+            RightUpperLeg = char:FindFirstChild("RightUpperLeg") and char.RightUpperLeg.Position,
+            RightLowerLeg = char:FindFirstChild("RightLowerLeg") and char.RightLowerLeg.Position,
+            RightFoot = char:FindFirstChild("RightFoot") and char.RightFoot.Position
+        }
+
+        local connections = {
+            {parts.Head, parts.UpperTorso},
+            {parts.UpperTorso, parts.LowerTorso},
+            {parts.UpperTorso, parts.LeftUpperArm},
+            {parts.LeftUpperArm, parts.LeftLowerArm},
+            {parts.LeftLowerArm, parts.LeftHand},
+            {parts.UpperTorso, parts.RightUpperArm},
+            {parts.RightUpperArm, parts.RightLowerArm},
+            {parts.RightLowerArm, parts.RightHand},
+            {parts.LowerTorso, parts.LeftUpperLeg},
+            {parts.LeftUpperLeg, parts.LeftLowerLeg},
+            {parts.LeftLowerLeg, parts.LeftFoot},
+            {parts.LowerTorso, parts.RightUpperLeg},
+            {parts.RightUpperLeg, parts.RightLowerLeg},
+            {parts.RightLowerLeg, parts.RightFoot}
+        }
+
+        local lines = drawings.Skeleton
+        for i, conn in ipairs(connections) do
+            if conn[1] and conn[2] then
+                local from = w2s(conn[1])
+                local to = w2s(conn[2])
+                if from and to then
+                    lines[i].From = from
+                    lines[i].To = to
+                    lines[i].Color = skelColor
+                    lines[i].Thickness = ESPSettings.SkeletonThickness
+                    lines[i].Visible = true
+                else
+                    lines[i].Visible = false
+                end
+            else
+                lines[i].Visible = false
+            end
+        end
+    else
+        for _, ln in ipairs(drawings.Skeleton) do ln.Visible = false end
+    end
+
+    -- Chams
+    if ESPSettings.Chams then
+        if not drawings.Highlight then
+            drawings.Highlight = Instance.new("Highlight")
+            drawings.Highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+            drawings.Highlight.Parent = char
+        end
+        drawings.Highlight.Enabled = true
+        drawings.Highlight.FillColor = isFriend and ESPSettings.FriendColor or ESPSettings.ChamsFillColor
+        drawings.Highlight.OutlineColor = ESPSettings.ChamsOutlineColor
+        drawings.Highlight.FillTransparency = ESPSettings.ChamsFillTransparency
+        drawings.Highlight.OutlineTransparency = ESPSettings.ChamsOutlineTransparency
+    else
+        if drawings.Highlight then
+            drawings.Highlight.Enabled = false
+        end
+    end
+end
+
+    -- Radar
+    if RadarSettings.Enabled and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+        local lpPos = LocalPlayer.Character.HumanoidRootPart.Position
+        local center = RadarSettings.Position + Vector2.new(RadarSettings.Size / 2, RadarSettings.Size / 2)
+        RadarBackground.Position = RadarSettings.Position
+        RadarBackground.Size = Vector2.new(RadarSettings.Size, RadarSettings.Size)
+        RadarBackground.Color = RadarSettings.BackgroundColor
+        RadarBackground.Visible = true
+        RadarCenterDot.Position = center
+        RadarCenterDot.Color = RadarSettings.CenterColor
+        RadarCenterDot.Visible = true
+
+        for player, dot in pairs(RadarDots) do
+            local char = player.Character
+            local hrp = char and char:FindFirstChild("HumanoidRootPart")
+            if hrp then
+                local diff = hrp.Position - lpPos
+                local rel = Camera.CFrame:VectorToObjectSpace(diff)
+                local radarX = rel.X
+                local radarZ = RadarSettings.Reverse and rel.Z or -rel.Z
+                local relative = Vector2.new(radarX, radarZ)
+                local dist = relative.Magnitude
+                local scale = RadarSettings.Size / 200
+                relative = relative * scale
+                if dist > (RadarSettings.Size / 2 - dot.Radius) then
+                    relative = relative.Unit * (RadarSettings.Size / 2 - dot.Radius)
+                end
+                dot.Position = center + relative
+                dot.Color = Friends[player.Name] and RadarSettings.FriendDotColor or RadarSettings.DotColor
+                dot.Visible = true
+            else
+                dot.Visible = false
+            end
+        end
+    else
+        RadarBackground.Visible = false
+        RadarCenterDot.Visible = false
+        for _, dot in pairs(RadarDots) do dot.Visible = false end
+    end
+end)
+
+-- UI Elements (Fluent style)
+Combat:AddToggle("AimbotToggle", {
+    Title = "Enable Aimbot [only firstperson] [BETA]",
+    Default = false,
+    Callback = function(v) AimbotSettings.Enabled = v end
+})
+
+Combat:AddKeybind("HoldKeybind", {
+    Title = "Hold Key",
+    Mode = "Hold",
+    Default = "X",
+    Callback = function(key) AimbotSettings.HoldKey = key end
+})
+
+Combat:AddDropdown("AimPart", {
+    Title = "Aim Part",
+    Values = {"Head", "UpperTorso", "LowerTorso", "HumanoidRootPart"},
+    Default = "Head",
+    Callback = function(opt) AimbotSettings.TargetPart = opt end
+})
+
+Combat:AddSlider("FOVRadius", {
+    Title = "FOV Radius",
+    Min = 30,
+    Max = 600,
+    Default = 150,
+    Rounding = 0,
+    Callback = function(v) AimbotSettings.FOVRadius = v end
+})
+
+Combat:AddToggle("ShowFOV", {
+    Title = "Show FOV Circle",
+    Default = true,
+    Callback = function(v) AimbotSettings.ShowFOV = v end
+})
+
+Combat:AddSlider("Smoothing", {
+    Title = "Smoothing",
+    Min = 0,
+    Max = 1,
+    Default = 0.2,
+    Rounding = 2,
+    Callback = function(v) AimbotSettings.Smoothing = v end
+})
+
+Combat:AddToggle("TeamCheck", {
+    Title = "Team Check",
+    Default = false,
+    Callback = function(v) AimbotSettings.TeamCheck = v end
+})
+
+Visuals:AddToggle("BoxESP", {Title = "Box ESP", Default = false, Callback = function(v) ESPSettings.Boxes = v end})
+Visuals:AddToggle("NameESP", {Title = "Name ESP", Default = false, Callback = function(v) ESPSettings.Names = v end})
+Visuals:AddToggle("DistESP", {Title = "Distance ESP", Default = false, Callback = function(v) ESPSettings.Distance = v end})
+Visuals:AddToggle("Tracers", {Title = "Tracers", Default = false, Callback = function(v) ESPSettings.Tracer = v end})
+Visuals:AddToggle("SkeletonESP", {Title = "Skeleton ESP", Default = false, Callback = function(v) ESPSettings.Skeleton = v end})
+Visuals:AddSlider("SkelThickness", {Title = "Skeleton Thickness", Min = 1, Max = 5, Default = 1.5, Rounding = 1, Callback = function(v) ESPSettings.SkeletonThickness = v end})
+Visuals:AddToggle("Fullbright", {Title = "Fullbright", Default = false, Callback = function(v) ESPSettings.FullBright = v end})
+Visuals:AddToggle("Chams", {Title = "Chams", Default = false, Callback = function(v) ESPSettings.Chams = v end})
+
+Visuals:AddToggle("RadarEnable", {Title = "Enable Radar", Default = false, Callback = function(v) RadarSettings.Enabled = v end})
+Visuals:AddSlider("RadarSize", {Title = "Radar Size", Min = 100, Max = 300, Default = 180, Rounding = 0, Callback = function(v) RadarSettings.Size = v end})
+Visuals:AddToggle("ReverseRadar", {Title = "Reverse Radar Direction", Default = true, Callback = function(v) RadarSettings.Reverse = v end})
+
+-- Colors (använd Colorpickers)
+ColorsTab:AddColorpicker("BoxColor", {
+    Title = "Box Color",
+    Default = ESPSettings.BoxColor,
+    Callback = function(v) ESPSettings.BoxColor = v end
+})
+
+ColorsTab:AddColorpicker("NameColor", {
+    Title = "Name Color",
+    Default = ESPSettings.NameColor,
+    Callback = function(v) ESPSettings.NameColor = v end
+})
+
+ColorsTab:AddColorpicker("DistanceColor", {
+    Title = "Distance Color",
+    Default = ESPSettings.DistanceColor,
+    Callback = function(v) ESPSettings.DistanceColor = v end
+})
+
+ColorsTab:AddColorpicker("TracerColor", {
+    Title = "Tracer Color",
+    Default = ESPSettings.TracerColor,
+    Callback = function(v) ESPSettings.TracerColor = v end
+})
+
+ColorsTab:AddColorpicker("SkeletonColor", {
+    Title = "Skeleton Color",
+    Default = ESPSettings.SkeletonColor,
+    Callback = function(v) ESPSettings.SkeletonColor = v end
+})
+
+ColorsTab:AddColorpicker("FriendColor", {
+    Title = "Friend Color",
+    Default = ESPSettings.FriendColor,
+    Callback = function(v) ESPSettings.FriendColor = v end
+})
+
+ColorsTab:AddColorpicker("FOVColor", {
+    Title = "FOV Color",
+    Default = AimbotSettings.FOVColor,
+    Callback = function(v) AimbotSettings.FOVColor = v end
+})
+
+ColorsTab:AddColorpicker("ChamsFillColor", {
+    Title = "Chams Fill Color",
+    Default = ESPSettings.ChamsFillColor,
+    Callback = function(v) ESPSettings.ChamsFillColor = v end
+})
+
+ColorsTab:AddColorpicker("ChamsOutlineColor", {
+    Title = "Chams Outline Color",
+    Default = ESPSettings.ChamsOutlineColor,
+    Callback = function(v) ESPSettings.ChamsOutlineColor = v end
+})
+
+UpdateFriendList()  -- Initial update
+Fluent:Notify({Title = "GilbertHUB", Content = "Gilbert genius", Duration = 5})
+-- FLUENT
